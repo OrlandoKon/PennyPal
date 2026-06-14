@@ -1,0 +1,23 @@
+[Unit]
+Description=PennyPal 记账 Agent (DeepSeek V4)
+After=network-online.target pennypal-ocr.service
+Wants=network-online.target pennypal-ocr.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/Repository/PennyPal
+# 应用用 python-dotenv 读取 WorkingDirectory 下的 .env（含 DEEPSEEK_API_KEY 等），无需 EnvironmentFile
+ExecStart=/root/.local/share/mamba/envs/PennyPal/bin/uvicorn backend.main:app --host 127.0.0.1 --port 9527 --app-dir /root/Repository/PennyPal
+Restart=always
+RestartSec=3
+
+# 若本机仅能经本地代理访问外网（你之前 shell 里有 http_proxy=127.0.0.1:15732），
+# 取消下面三行注释，让 systemd 下的 DeepSeek 调用也走代理。
+# 注意 NO_PROXY 必须排除 localhost，否则到 OCR(127.0.0.1:8001) 的调用会被错误地代理掉。
+#Environment=HTTPS_PROXY=http://127.0.0.1:15732
+#Environment=HTTP_PROXY=http://127.0.0.1:15732
+#Environment=NO_PROXY=localhost,127.0.0.1,::1
+
+[Install]
+WantedBy=multi-user.target

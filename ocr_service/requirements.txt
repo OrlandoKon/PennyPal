@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+rapidocr-onnxruntime
+pillow
+numpy

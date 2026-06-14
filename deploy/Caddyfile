@@ -1,0 +1,18 @@
+# PennyPal — HTTPS 反代（放到 /etc/caddy/Caddyfile）
+#
+# 作用：Caddy 监听 80/443，自动为 pennypal.orlando.ink 签发/续期 Let's Encrypt 证书，
+# 反代到本机应用 127.0.0.1:9527，并把 http 自动跳转到 https。
+# 语音(Web Speech API)需要 HTTPS 才能用 —— 这一步就是为它服务的。
+#
+# 安装 Caddy（Debian/Ubuntu 官方源）：
+#   apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+#   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+#   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' > /etc/apt/sources.list.d/caddy-stable.list
+#   apt-get update && apt-get install -y caddy
+# 应用此配置：
+#   cp deploy/Caddyfile /etc/caddy/Caddyfile && systemctl reload caddy
+# 前提：公网 80 与 443 可达（OS 防火墙已放开；云安全组若有需放行）。
+
+pennypal.orlando.ink {
+	reverse_proxy localhost:9527
+}

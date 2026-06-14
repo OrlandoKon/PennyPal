@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>智能记账 Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    #chat::-webkit-scrollbar, .scroll::-webkit-scrollbar { width: 8px; }
+    #chat::-webkit-scrollbar-thumb, .scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="lg:h-screen lg:flex lg:flex-col lg:overflow-hidden">
+    <!-- 顶栏 -->
+    <header class="sticky top-0 z-10 bg-white border-b">
+      <div class="max-w-screen-2xl mx-auto px-4 h-14 flex items-center gap-3">
+        <div class="font-semibold text-lg">💰 智能记账</div>
+        <span class="text-xs text-slate-400 hidden sm:inline">DeepSeek V4 · 本地 OCR</span>
+        <button id="refresh" class="ml-auto text-sm border rounded-full px-3 py-1 text-slate-600 hover:bg-slate-50">↻ 刷新数据</button>
+      </div>
+    </header>
+
+    <main class="lg:flex-1 lg:min-h-0 w-full max-w-screen-2xl mx-auto lg:grid lg:grid-cols-3 lg:grid-rows-1">
+      <!-- 左:记账（聊天） -->
+      <section class="flex flex-col h-[75vh] lg:h-auto lg:min-h-0 lg:col-span-1 lg:border-r bg-white">
+        <div class="shrink-0 px-4 py-2 border-b text-sm font-medium text-slate-500">记账</div>
+        <div id="chat" class="flex-1 overflow-y-auto px-4 py-4 space-y-4"></div>
+        <div class="shrink-0 border-t px-4 py-3">
+          <div class="flex gap-2">
+            <input id="msg" autocomplete="off"
+              class="flex-1 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring focus:ring-blue-200"
+              placeholder="说一句，例如：中午吃饭35 微信付的" />
+            <button id="send" class="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 text-sm font-medium">发送</button>
+          </div>
+          <div class="flex gap-2 text-sm mt-2">
+            <button id="mic" class="border rounded-full px-4 py-1.5 text-slate-600 hover:bg-slate-50">🎤 语音</button>
+            <button id="pick" class="border rounded-full px-4 py-1.5 text-slate-600 hover:bg-slate-50">📷 截图</button>
+            <input id="file" type="file" accept="image/*" class="hidden" />
+          </div>
+        </div>
+      </section>
+
+      <!-- 右:仪表盘（分析 + 账本，独立滚动） -->
+      <section class="scroll lg:col-span-2 lg:min-h-0 lg:overflow-y-auto px-4 lg:px-6 py-6 space-y-8">
+        <!-- 分析 -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-3">
+            <h2 class="text-base font-semibold">分析</h2>
+            <input id="analysis-month" type="month" class="border rounded px-2 py-1 text-sm bg-white" />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white border rounded-xl p-4">
+              <div class="text-xs text-slate-500">本月支出</div>
+              <div id="a-total" class="text-2xl font-semibold mt-1">¥0</div>
+              <div id="a-change" class="text-xs text-slate-400 mt-1">环比上月 —</div>
+            </div>
+            <div class="bg-white border rounded-xl p-4">
+              <div class="text-xs text-slate-500">本月收入</div>
+              <div id="a-income" class="text-2xl font-semibold text-emerald-600 mt-1">¥0</div>
+            </div>
+          </div>
+
+          <!-- 洞察 + AI 解读 -->
+          <div class="bg-amber-50 rounded-xl p-4">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm font-medium text-amber-800">洞察</span>
+              <button id="ai-insight" class="ml-auto text-xs border border-amber-300 text-amber-700 rounded-full px-2 py-0.5 hover:bg-amber-100">✨ AI 解读</button>
+            </div>
+            <div id="a-insight" class="text-amber-800 text-sm leading-relaxed"></div>
+          </div>
+
+          <!-- 预算 -->
+          <div class="bg-white border rounded-xl p-4 space-y-3">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium">预算</span>
+              <span class="text-xs text-slate-400">（月度；留空=不限，0 取消）</span>
+              <button id="budget-save" class="ml-auto text-xs bg-blue-600 text-white rounded-full px-3 py-1 hover:bg-blue-700">保存预算</button>
+            </div>
+            <div id="budget-inputs" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+            <div id="budget-bars" class="space-y-2"></div>
+          </div>
+
+          <!-- 记忆 / 偏好 -->
+          <div class="bg-white border rounded-xl p-4">
+            <div class="text-sm font-medium mb-2">🧠 已记住的分类偏好</div>
+            <div id="prefs" class="flex flex-wrap gap-2"></div>
+          </div>
+          <div class="grid gap-4 xl:grid-cols-2">
+            <div class="bg-white border rounded-xl p-4">
+              <div class="text-sm font-medium mb-3">分类占比</div>
+              <div class="relative h-64"><canvas id="pie"></canvas></div>
+            </div>
+            <div class="bg-white border rounded-xl p-4">
+              <div class="text-sm font-medium mb-3">账户占比</div>
+              <div class="relative h-64"><canvas id="account-pie"></canvas></div>
+            </div>
+          </div>
+          <div class="bg-white border rounded-xl p-4">
+            <div class="text-sm font-medium mb-3">近 6 个月收支对比</div>
+            <div class="relative h-64"><canvas id="bar"></canvas></div>
+          </div>
+          <div class="bg-white border rounded-xl p-4">
+            <div class="flex flex-col sm:flex-row gap-6">
+              <div class="shrink-0">
+                <div class="flex items-center justify-between gap-4 mb-3">
+                  <div class="text-sm font-medium">每日支出热力图</div>
+                  <div id="heatmap-legend" class="text-xs text-slate-400"></div>
+                </div>
+                <div id="heatmap"></div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium mb-3">本月 Top 支出</div>
+                <div id="top-spend" class="space-y-2"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 账本 -->
+        <div class="space-y-3">
+          <div class="flex items-center gap-3">
+            <h2 class="text-base font-semibold">账本</h2>
+            <input id="ledger-month" type="month" class="border rounded px-2 py-1 text-sm bg-white" />
+          </div>
+          <div id="ledger-list" class="grid gap-3 sm:grid-cols-2"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 编辑弹窗 -->
+  <div id="modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-20">
+    <div class="bg-white rounded-xl w-full max-w-sm p-5 space-y-3 shadow-xl">
+      <div class="font-medium text-base">编辑记录</div>
+      <label class="block text-xs text-slate-500">金额
+        <input id="e-amount" type="number" step="0.01" class="mt-1 w-full border rounded px-2 py-1.5 text-sm" />
+      </label>
+      <label class="block text-xs text-slate-500">分类
+        <select id="e-category" class="mt-1 w-full border rounded px-2 py-1.5 text-sm"></select>
+      </label>
+      <label class="block text-xs text-slate-500">账户
+        <input id="e-account" class="mt-1 w-full border rounded px-2 py-1.5 text-sm" />
+      </label>
+      <label class="block text-xs text-slate-500">日期
+        <input id="e-date" type="date" class="mt-1 w-full border rounded px-2 py-1.5 text-sm" />
+      </label>
+      <label class="block text-xs text-slate-500">状态
+        <select id="e-status" class="mt-1 w-full border rounded px-2 py-1.5 text-sm">
+          <option value="confirmed">已确认</option>
+          <option value="pending">待确认</option>
+        </select>
+      </label>
+      <div class="flex gap-2 pt-1">
+        <button id="e-cancel" class="flex-1 border rounded py-1.5 text-sm">取消</button>
+        <button id="e-save" class="flex-1 bg-blue-600 text-white rounded py-1.5 text-sm">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

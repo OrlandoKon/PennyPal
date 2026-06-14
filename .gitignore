@@ -150,6 +150,13 @@ activemq-data/
 # Environments
 .env
 .envrc
+
+# PennyPal — 密钥与运行时数据（勿提交）
+key.txt
+data/
+*.db
+*.sqlite3
+
 .venv
 env/
 venv/
